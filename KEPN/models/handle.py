@@ -1,4 +1,4 @@
-from cmath import inf
+import torch.nn.functional as F
 import math
 import torch
 import torch.nn as nn
@@ -39,33 +39,37 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 class TransformerModel(nn.Module):
-
     def __init__(self, vocab_size,
                  num_encoder_layers=6,
                  num_decoder_layers=6,
                  nhead=6,
-                 d_ff = 1024,
-                 dropout = 0.1,
+                 d_ff=1024,
+                 dropout=0.1,
                  d_model=512):
         super(TransformerModel, self).__init__()
-        
-        self.embedding = nn.Embedding(num_embeddings=vocab_size, embedding_dim=d_model)
-        
-        encoder_layer = nn.TransformerEncoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=d_ff, dropout=dropout)
+        self.nhead = nhead
+        self.embedding = nn.Embedding(
+            num_embeddings=vocab_size, embedding_dim=d_model)
+
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=nhead, dim_feedforward=d_ff, dropout=dropout)
         encoder_norm = nn.LayerNorm(d_model)
-        self.encoder = nn.TransformerEncoder(encoder_layer, num_encoder_layers, encoder_norm)
-        
-        decoder_layer = nn.TransformerDecoderLayer(d_model=d_model, nhead=nhead, dim_feedforward=d_ff, dropout=dropout)
+        self.encoder = nn.TransformerEncoder(
+            encoder_layer, num_encoder_layers, encoder_norm)
+
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=d_model, nhead=nhead, dim_feedforward=d_ff, dropout=dropout)
         decoder_norm = nn.LayerNorm(d_model)
-        self.decoder = nn.TransformerDecoder(decoder_layer, num_decoder_layers, decoder_norm)
-        
+        self.decoder = nn.TransformerDecoder(
+            decoder_layer, num_decoder_layers, decoder_norm)
+
         # self.transformer = nn.Transformer(d_model=d_model,
         #                                   nhead=nhead,
-        #                                   num_encoder_layers=num_encoder_layers, 
-        #                                   num_decoder_layers=num_decoder_layers, 
-        #                                   dim_feedforward=d_ff, 
+        #                                   num_encoder_layers=num_encoder_layers,
+        #                                   num_decoder_layers=num_decoder_layers,
+        #                                   dim_feedforward=d_ff,
         #                                   dropout=dropout)
-        
+
         self.positional_encoding = PositionalEncoding(d_model, dropout=0.3)
         
     def generate_square_subsequent_mask(self, sz: int):
@@ -76,34 +80,32 @@ class TransformerModel(nn.Module):
     def forward(self, src, tgt):
         # 生成 mask
         tgt_mask = self.generate_square_subsequent_mask(tgt.size()[-1]).to(src.device)
-        # tgt_mask = tgt_mask.expand(tgt.size()[0]*self.transformer.nhead,tgt.size()[-1],tgt.size()[-1])
         src_key_padding_mask = TransformerModel.get_key_padding_mask(src)
         tgt_key_padding_mask = TransformerModel.get_key_padding_mask(tgt)
-        
 
         src_emb = self.embedding(src)
         tgt_emb = self.embedding(tgt)
-        
-        # tgt_mask = triu_mask(tgt.size(1)).to(tgt_emb.device) | pad_mask(tgt, 0)
+
         # 给src和tgt的token增加位置信息
         src_emb = self.positional_encoding(src_emb)
         tgt_emb = self.positional_encoding(tgt_emb)
 
-        # 将准备好的数据送给transformer
-        memory = self.encoder(src_emb, src_key_padding_mask=src_key_padding_mask)
-        output = self.decoder(tgt_emb, memory, tgt_mask=tgt_mask, src_key_padding_mask=src_key_padding_mask, tgt_key_padding_mask=tgt_key_padding_mask)
+        # torch1.8.1 版本要求 src_emb，tgt_emb： seq_len,N,d_model
+        # src_emb.transpose(1,0,2)
+        memory = self.encoder(
+            src_emb.transpose(1, 0), src_key_padding_mask=src_key_padding_mask)
+        output = self.decoder(tgt_emb.transpose(1, 0), memory, tgt_mask=tgt_mask,
+                              tgt_key_padding_mask=tgt_key_padding_mask)
 
-        return output, memory
+        return output.transpose(1, 0), memory.transpose(1, 0)
 
     @staticmethod
     def get_key_padding_mask(tokens):
         """
         用于key_padding_mask
         """
-        key_padding_mask = torch.zeros(tokens.size())
-        key_padding_mask[tokens == 0] = -inf
         
-        return key_padding_mask
+        return tokens == 0
     
 class SoftAttention(nn.Module):
     def __init__(self,d_model=512):
@@ -139,3 +141,29 @@ class SoftAttention(nn.Module):
         ct = torch.cat([ct_si, ct_pi], dim=-1) # b,seq_len,d*2
         
         return ct
+
+class LabelSmoothing(nn.Module):
+
+    def __init__(self, smoothing=0., ignore_index=None):
+        super().__init__()
+        self.criterion = nn.KLDivLoss(reduction='none')
+        self.smoothing = smoothing
+        self.ignore_index = ignore_index
+
+    def forward(self, inputs, targets, norm=1):
+        inputs = torch.log(inputs)
+        vocab_size = inputs.size(-1)
+        batch_size = targets.size(0)
+        length = targets.size(1)
+        if self.ignore_index is not None:
+            mask = (targets == self.ignore_index).view(-1)
+        
+        index = targets.unsqueeze(-1)
+        targets = F.one_hot(targets, num_classes=inputs.size(-1))
+        targets = targets * (1 - self.smoothing) + self.smoothing / vocab_size
+        loss = self.criterion(inputs.view(-1, vocab_size), 
+                              targets.view(-1, vocab_size).detach()).sum(dim=-1)
+        if self.ignore_index is not None:
+            return loss.masked_fill(mask, 0.).sum() / norm
+        else:
+            return loss.sum() / norm

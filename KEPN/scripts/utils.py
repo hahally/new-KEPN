@@ -1,5 +1,7 @@
 import os
 import pickle
+
+import torch
 from scripts.Constants import *
 
 def create_vocab(file_list, vocab_num=-1):
@@ -33,6 +35,12 @@ def create_vocab(file_list, vocab_num=-1):
         index2word[len(index2word)] = word
         
     return word2index, index2word
+
+def save_model(model, save_path):
+    file_path = os.path.join(*os.path.split(save_path)[:-1])
+    if os.path.exists(file_path) is False:
+        os.makedirs(file_path)
+    torch.save(model.state_dict(), save_path)
 
 def load_vocab(save_path):
     with open(save_path, 'rb') as f:

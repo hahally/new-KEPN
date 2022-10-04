@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from models.module import TransformerModel,SoftAttention
+from models.handle import TransformerModel,SoftAttention
 
 class KEPN(nn.Module):
     def __init__(self,
@@ -22,16 +22,20 @@ class KEPN(nn.Module):
         self.soft_att = SoftAttention(d_model=d_model)
 
         self.mlp = nn.Sequential(nn.Linear(d_model*3, vocab_size))
-        self.labeling = nn.Sequential(nn.Linear(d_model, 3))
+        self.labeling = nn.Sequential(nn.Linear(d_model, 2))
     
     def forward(self, src, tgt, syn, pos):
-        
         dec, memory = self.transformer_model(src, tgt)
         prediction = self.labeling(memory)
-        
-        syn_emb = self.transformer_model.embedding(syn) # b,syn_len,d_model
-        pos_emb = self.transformer_model.positional_encoding.pe[0, pos] # b,pos_len,d_model
-        ct = self.soft_att(syn_emb,pos_emb) # b,seq_len,d_model*2
-        output = self.mlp(torch.cat([dec, ct], dim=-1)) # b,se1_len,vocab_size
-    
+        syn_emb = self.transformer_model.embedding(syn)  # b,syn_len,d_model
+        # b,pos_len,d_model
+        pos_emb = self.transformer_model.positional_encoding.pe[0, pos]
+        ct = self.soft_att(syn_emb, pos_emb, dec)  # b,seq_len,d_model*2
+        output = self.mlp(torch.cat([dec, ct], dim=-1))  # b,se1_len,vocab_size
+
         return prediction, output
+    
+    # TO DO
+    def generate(self, src, syn, pos):
+        
+        pass
