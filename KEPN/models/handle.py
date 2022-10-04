@@ -1,7 +1,10 @@
+from tqdm import tqdm
 import torch.nn.functional as F
 import math
 import torch
 import torch.nn as nn
+
+from scripts.Constants import EOS
 
 def pad_mask(inputs, PAD):
     return (inputs==PAD).unsqueeze(1)
@@ -62,13 +65,6 @@ class TransformerModel(nn.Module):
         decoder_norm = nn.LayerNorm(d_model)
         self.decoder = nn.TransformerDecoder(
             decoder_layer, num_decoder_layers, decoder_norm)
-
-        # self.transformer = nn.Transformer(d_model=d_model,
-        #                                   nhead=nhead,
-        #                                   num_encoder_layers=num_encoder_layers,
-        #                                   num_decoder_layers=num_decoder_layers,
-        #                                   dim_feedforward=d_ff,
-        #                                   dropout=dropout)
 
         self.positional_encoding = PositionalEncoding(d_model, dropout=0.3)
         
@@ -167,3 +163,43 @@ class LabelSmoothing(nn.Module):
             return loss.masked_fill(mask, 0.).sum() / norm
         else:
             return loss.sum() / norm
+        
+# TO DO
+class Generator():
+    def __init__(self, idx2word, model, max_len=30):
+        super(Generator).__init__()
+        self.id2word = idx2word
+        self.model = model
+        self.max_len = max_len
+    
+    def generate(self, dataloader):
+        sents = []
+        self.model.eval()
+        with torch.no_grad():
+            for src_tokens, tgt_sent_in, tgt_sent_out, syn_tokens, pos, synonym_label in tqdm(dataloader):
+                tgt_tokens = self.generate_batch(src_tokens, syn_tokens, pos)
+                sents += self.idx2sent(tgt_tokens)
+        
+        return sents
+        
+    def generate_batch(self,src, syn, pos):
+        bsz = src.size(0)
+        tgt = torch.zeros(size=(bsz, 1), dtype=torch.long).to(src.device)
+        for i in range(self.max_len):
+            _, out = self.model(src, tgt,syn, pos)
+            
+            word_pre = out[:,-1]
+            word_index = torch.argmax(word_pre, dim=1)
+            tgt = torch.cat([tgt, word_index.unsqueeze(1)], dim=1)
+            
+            if word_index == EOS:
+                break
+            
+        return tgt
+    
+    def idx2sent(self, sent_tokens):
+        sents = []
+        for tokens in sent_tokens:
+            sents.append(' '.join([self.id2word[int(idx)] for idx in tokens]))
+            
+        return sents

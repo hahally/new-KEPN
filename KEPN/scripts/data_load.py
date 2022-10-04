@@ -38,10 +38,10 @@ class KEPNDataset(Dataset):
         
         tgt_sent_in = [BOS_WORD] + tgt_sent + [PAD_WORD]*(self.clip_len - len(tgt_sent))
         tgt_sent_out = tgt_sent + [EOS_WORD] + [PAD_WORD]*(self.clip_len - len(tgt_sent))
-        src_tokens = torch.LongTensor([self.tokenizer.get(w, UNK_WORD) for w in src_sent])
-        tgt_sent_in = torch.LongTensor([self.tokenizer.get(w, UNK_WORD) for w in tgt_sent_in])
-        tgt_sent_out = torch.LongTensor([self.tokenizer.get(w, UNK_WORD) for w in tgt_sent_out])
-        syn_tokens = torch.LongTensor([self.tokenizer.get(w, UNK_WORD) for w in s])
+        src_tokens = torch.LongTensor([self.tokenizer.get(w, UNK) for w in src_sent])
+        tgt_sent_in = torch.LongTensor([self.tokenizer.get(w, UNK) for w in tgt_sent_in])
+        tgt_sent_out = torch.LongTensor([self.tokenizer.get(w, UNK) for w in tgt_sent_out])
+        syn_tokens = torch.LongTensor([self.tokenizer.get(w, UNK) for w in s])
         
         label = torch.LongTensor([int(i in p) for i, w in enumerate(src_sent)])
         

@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from models.handle import TransformerModel,SoftAttention
+from scripts.Constants import EOS
 
 class KEPN(nn.Module):
     def __init__(self,
@@ -21,7 +22,7 @@ class KEPN(nn.Module):
 
         self.soft_att = SoftAttention(d_model=d_model)
 
-        self.mlp = nn.Sequential(nn.Linear(d_model*3, vocab_size))
+        self.mlp = nn.Sequential(nn.Linear(d_model*3, vocab_size), nn.Softmax(dim=-1))
         self.labeling = nn.Sequential(nn.Linear(d_model, 2))
     
     def forward(self, src, tgt, syn, pos):
@@ -34,8 +35,4 @@ class KEPN(nn.Module):
         output = self.mlp(torch.cat([dec, ct], dim=-1))  # b,se1_len,vocab_size
 
         return prediction, output
-    
-    # TO DO
-    def generate(self, src, syn, pos):
         
-        pass
