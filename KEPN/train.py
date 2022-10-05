@@ -41,7 +41,7 @@ def train_model(model, device, data, epoch, batchPrintInfo, model_save_path):
             synonym_label = synonym_label.reshape(bsz * src_len)
             loss_labeling = criterion_labeling(prediction,synonym_label).to(device)
             acc = torch.sum((torch.argmax(prediction, dim=-1) == synonym_label)).item()/(bsz * src_len)
-            loss_g = criterion(output, tgt_sent_out, norm=bsz).to(device)/bsz
+            loss_g = criterion(output, tgt_sent_out, norm=bsz).to(device)
             
             loss = alpha * loss_labeling + (1-alpha) * loss_g
             loss_total += loss.item()
