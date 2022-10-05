@@ -4,7 +4,7 @@ import math
 import torch
 import torch.nn as nn
 
-from scripts.Constants import EOS
+from scripts.Constants import BOS, EOS, EOS_WORD
 
 def pad_mask(inputs, PAD):
     return (inputs==PAD).unsqueeze(1)
@@ -45,7 +45,7 @@ class TransformerModel(nn.Module):
     def __init__(self, vocab_size,
                  num_encoder_layers=6,
                  num_decoder_layers=6,
-                 nhead=6,
+                 nhead=8,
                  d_ff=1024,
                  dropout=0.1,
                  d_model=512):
@@ -166,40 +166,53 @@ class LabelSmoothing(nn.Module):
         
 # TO DO
 class Generator():
-    def __init__(self, idx2word, model, max_len=30):
+    def __init__(self, idx2word, model, device, max_len=30):
         super(Generator).__init__()
         self.id2word = idx2word
         self.model = model
         self.max_len = max_len
+        self.device = device
     
     def generate(self, dataloader):
         sents = []
         self.model.eval()
         with torch.no_grad():
             for src_tokens, tgt_sent_in, tgt_sent_out, syn_tokens, pos, synonym_label in tqdm(dataloader):
-                tgt_tokens = self.generate_batch(src_tokens, syn_tokens, pos)
-                sents += self.idx2sent(tgt_tokens)
+                src_tokens = src_tokens.to(self.device)
+                syn_tokens = syn_tokens.to(self.device)
+                pos = pos.to(self.device)
+                tgt_tokens, EOS_index = self.generate_batch(src_tokens, syn_tokens, pos)
+                sents += self.idx2sent(tgt_tokens, EOS_index)
         
         return sents
         
     def generate_batch(self,src, syn, pos):
         bsz = src.size(0)
-        tgt = torch.zeros(size=(bsz, 1), dtype=torch.long).to(src.device)
+        tgt = torch.LongTensor(bsz, 1).fill_(BOS).to(src.device)
+        
+        EOS_flag = torch.BoolTensor(bsz).fill_(False).to(src.device)
+        EOS_index = torch.LongTensor(bsz).fill_(self.max_len).to(src.device)
+        flag = False
         for i in range(self.max_len):
             _, out = self.model(src, tgt,syn, pos)
             
             word_pre = out[:,-1]
             word_index = torch.argmax(word_pre, dim=1)
             tgt = torch.cat([tgt, word_index.unsqueeze(1)], dim=1)
-            
-            if word_index == EOS:
+            mask = (word_index == EOS).view(-1).masked_fill_(EOS_flag, False)
+            EOS_flag |= mask
+            EOS_index.masked_fill_(mask, i + 1)
+            if EOS_flag.sum() == bsz and flag:
                 break
-            
-        return tgt
+            flag = True  
+        return tgt, EOS_index
     
-    def idx2sent(self, sent_tokens):
+    def idx2sent(self, sent_tokens, EOS_index):
         sents = []
-        for tokens in sent_tokens:
-            sents.append(' '.join([self.id2word[int(idx)] for idx in tokens]))
-            
+        for i, tokens in enumerate(sent_tokens):
+            tokens = tokens[1:int(EOS_index[i].item())]
+            sent = ' '.join([self.id2word[int(idx)] for idx in tokens])
+            # sent = sent.replace(EOS_WORD, '')
+            sents.append(sent)
+        
         return sents

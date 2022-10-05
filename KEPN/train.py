@@ -122,5 +122,5 @@ if __name__ == '__main__':
     data = {}
     data['train'] = train
     data['valid'] = valid
-    model = KEPN(vocab_size=100).to(device)
+    model = KEPN(vocab_size=len(word2index)).to(device)
     train_model(model, device, data, epoch=epoch, batchPrintInfo=batchPrintInfo, model_save_path=model_save_path)

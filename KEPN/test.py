@@ -16,8 +16,8 @@ test_loader = create_dataloader(tokenizer=word2index,
                           shuffle=False)
 
 device = torch.device('cpu')
-model = KEPN(vocab_size=100).to(device)
+model = KEPN(vocab_size=len(word2index)).to(device)
 model = load_model(model, checkpoint_path)
 
-G = Generator(idx2word=index2word, model=model)
+G = Generator(idx2word=index2word, model=model,device=device)
 sents = G.generate(dataloader=test_loader)

@@ -63,3 +63,9 @@ def save_vocab(word2index, index2word, save_path):
     with open(save_path, 'wb') as f:
         pickle.dump(vocab, f)
     print('===> Save Vocabulary Successfully.')
+    
+# 保存文件
+def save_text(lines,file):
+    with open(file=file, mode='w', encoding='utf-8') as f:
+        for line in lines:
+            f.write(line+'\n')
