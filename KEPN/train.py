@@ -1,4 +1,3 @@
-
 import os
 from tqdm import tqdm
 import torch
@@ -11,10 +10,10 @@ from models.model import KEPN
 def train_model(model, device, data, epoch, batchPrintInfo, model_save_path):
     train_loader = data['train']
     valid_loader = data['valid']
-
+    # model = KEPN(vocab_size=1000)
     alpha = 0.1
     optim = torch.optim.Adam(params=model.parameters(),
-                             lr=0.0001,
+                             lr=1e-5,
                              betas=(0.9, 0.98),
                              eps=1e-9,
                              weight_decay=1e-4)
@@ -42,7 +41,6 @@ def train_model(model, device, data, epoch, batchPrintInfo, model_save_path):
             loss_labeling = criterion_labeling(prediction,synonym_label).to(device)
             acc = torch.sum((torch.argmax(prediction, dim=-1) == synonym_label)).item()/(bsz * src_len)
             loss_g = criterion(output, tgt_sent_out, norm=bsz).to(device)
-            
             loss = alpha * loss_labeling + (1-alpha) * loss_g
             loss_total += loss.item()
             loss.backward()
@@ -85,7 +83,6 @@ def train_model(model, device, data, epoch, batchPrintInfo, model_save_path):
                 
                 loss_g = criterion(output, tgt_sent_out, norm=bsz).to(device)
                 loss = alpha * loss_labeling + (1-alpha) * loss_g
-                
                 loss_total += loss
                 loss_g_total += loss_g
                 loss_labeling_total += loss_labeling
@@ -94,15 +91,12 @@ def train_model(model, device, data, epoch, batchPrintInfo, model_save_path):
             print(log_info)
         
 if __name__ == '__main__':
-    dataset = 'quora'
+    dataset = 'mscoco'
     vocab_path = f'./saved_model/{dataset}/vocab.pkl'
     word2index, index2word = load_vocab(vocab_path)
-    batch_size = 2
-    epoch = 40
-    lr = 1e-4
-    batchPrintInfo = 100
-    alpha = 0.1
-    device = device = torch.device('cuda:0')
+    batch_size = 128
+    epoch=50
+    batchPrintInfo = 50
     model_save_path = f'./saved_model/{dataset}/'
     
     train = create_dataloader(tokenizer=word2index,
@@ -110,17 +104,28 @@ if __name__ == '__main__':
                              tgt_file=f'./dataset/{dataset}/train-tgt.txt',
                              pair_file=f'./dataset/{dataset}/train_paraphrased_pair.txt',
                              batch_size=batch_size,
-                             shuffle=False)
+                             num_workers=4,
+                             pin_memory=True,
+                             shuffle=True)
     
     valid = create_dataloader(tokenizer=word2index,
                              src_file=f'./dataset/{dataset}/val-src.txt',
                              tgt_file=f'./dataset/{dataset}/val-tgt.txt',
                              pair_file=f'./dataset/{dataset}/val_paraphrased_pair.txt',
-                             batch_size=1,
+                             batch_size=batch_size,
+                             num_workers=4,
+                             pin_memory=True,
                              shuffle=False)
-    
     data = {}
     data['train'] = train
     data['valid'] = valid
-    model = KEPN(vocab_size=len(word2index)).to(device)
+    device = device = torch.device('cuda:0')
+    model = KEPN(vocab_size=len(word2index),
+                 num_encoder_layers=6,
+                 num_decoder_layers=6,
+                 nhead=8,
+                 d_ff=2048,
+                 dropout=0.3,
+                 d_model=512).to(device)
+    
     train_model(model, device, data, epoch=epoch, batchPrintInfo=batchPrintInfo, model_save_path=model_save_path)

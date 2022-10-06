@@ -73,7 +73,7 @@ def generate_dict(dict_fpath, vocab_fpath, in_fpath, out_fpath, max_paraph_dict=
     print("end!")
     return
 
-dataset = 'quora'
+dataset = 'mscoco'
 vocab_num = 25000
 file = [f'./dataset/{dataset}/train-src.txt',f'./dataset/{dataset}/train-tgt.txt']
 save_path = f'./saved_model/{dataset}/vocab.pkl'
@@ -82,4 +82,4 @@ save_vocab(word2index, index2word, save_path)
 
 generate_dict("./dataset/Export_dict_synonym.txt", f"./saved_model/{dataset}/vocab.pkl", f"./dataset/{dataset}/train-src.txt", f"./dataset/{dataset}/train_paraphrased_pair.txt")
 generate_dict("./dataset/Export_dict_synonym.txt", f"./saved_model/{dataset}/vocab.pkl", f"./dataset/{dataset}/val-src.txt", f"./dataset/{dataset}/val_paraphrased_pair.txt")
-# generate_dict("./dataset/Export_dict_synonym.txt", f"./saved_model/{dataset}/vocab.pkl", f"./dataset/{dataset}/test-src.txt", f"./dataset/{dataset}/test_paraphrased_pair.txt")
+generate_dict("./dataset/Export_dict_synonym.txt", f"./saved_model/{dataset}/vocab.pkl", f"./dataset/{dataset}/test-src.txt", f"./dataset/{dataset}/test_paraphrased_pair.txt")

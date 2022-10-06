@@ -1,0 +1,1 @@
+./saved_model/quora/test.txt:	self-BLEU:35.9	BLEU:23.41	iBLEU:5.62	bert-score:65.52	meteor:50.42

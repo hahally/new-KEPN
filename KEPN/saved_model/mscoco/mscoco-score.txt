@@ -1,0 +1,1 @@
+./saved_model/mscoco/test.txt:	self-BLEU:15.27	BLEU:25.0	iBLEU:12.92	bert-score:53.94	meteor:47.06

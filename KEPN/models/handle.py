@@ -1,8 +1,8 @@
-from tqdm import tqdm
 import torch.nn.functional as F
 import math
 import torch
 import torch.nn as nn
+from tqdm import tqdm
 
 from scripts.Constants import BOS, EOS, EOS_WORD
 
@@ -46,7 +46,7 @@ class TransformerModel(nn.Module):
                  num_encoder_layers=6,
                  num_decoder_layers=6,
                  nhead=8,
-                 d_ff=1024,
+                 d_ff=2048,
                  dropout=0.1,
                  d_model=512):
         super(TransformerModel, self).__init__()
@@ -65,6 +65,13 @@ class TransformerModel(nn.Module):
         decoder_norm = nn.LayerNorm(d_model)
         self.decoder = nn.TransformerDecoder(
             decoder_layer, num_decoder_layers, decoder_norm)
+
+        # self.transformer = nn.Transformer(d_model=d_model,
+        #                                   nhead=nhead,
+        #                                   num_encoder_layers=num_encoder_layers,
+        #                                   num_decoder_layers=num_decoder_layers,
+        #                                   dim_feedforward=d_ff,
+        #                                   dropout=dropout)
 
         self.positional_encoding = PositionalEncoding(d_model, dropout=0.3)
         
@@ -164,7 +171,7 @@ class LabelSmoothing(nn.Module):
         else:
             return loss.sum() / norm
         
-# TO DO
+
 class Generator():
     def __init__(self, idx2word, model, device, max_len=30):
         super(Generator).__init__()
