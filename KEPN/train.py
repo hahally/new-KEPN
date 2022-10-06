@@ -102,7 +102,7 @@ if __name__ == '__main__':
     lr = 1e-4
     batchPrintInfo = 100
     alpha = 0.1
-    device = torch.device('cpu')
+    device = device = torch.device('cuda:0')
     model_save_path = f'./saved_model/{dataset}/'
     
     train = create_dataloader(tokenizer=word2index,
