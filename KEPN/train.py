@@ -119,7 +119,7 @@ if __name__ == '__main__':
     data = {}
     data['train'] = train
     data['valid'] = valid
-    device = device = torch.device('cuda:0')
+    device = torch.device('cuda:0')
     model = KEPN(vocab_size=len(word2index),
                  num_encoder_layers=6,
                  num_decoder_layers=6,
